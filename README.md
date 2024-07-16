@@ -43,7 +43,7 @@ You might customize the repo for your own purpose.
 ```
 setup.py
 src/
-  |--fetch_oa.py: main script for download PMC-OA
+  |--fetch_oa.py: main script to download PMC-OA
   |--args/
   | |--args_oa.py: Configures for pipeline
   |--parser/

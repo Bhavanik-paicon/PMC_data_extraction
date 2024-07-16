@@ -1,7 +1,7 @@
 '''File list for PMC OA: [csv, txt, tar]
 '''
 
-UPDATE_SCHEDULE = '2023-02-08'
+UPDATE_SCHEDULE = '2024-06-18'  # for testing
 volume = 'PMC00%dxxxxxx'
 csv_url = f'https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC00%dxxxxxx.baseline.{UPDATE_SCHEDULE}.filelist.csv'
 txt_url = f'https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC00%dxxxxxx.baseline.{UPDATE_SCHEDULE}.filelist.txt'

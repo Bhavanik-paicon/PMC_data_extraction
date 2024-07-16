@@ -43,7 +43,7 @@ def provide_extraction_dir():
                 os.remove(f)
 
 
-def extract_archive(archive_path, target_dir):
+def extract_archive(archive_path, target_dir) -> None:
     subprocess.call(['tar', 'zxf', archive_path, '-C', target_dir])
 
 
@@ -78,7 +78,8 @@ def download_archive(volumes, extract=True):
             logger.info('%s already exists', volume)
     # end for
 
-def download_media(volume_info):
+
+def download_media(volume_info) -> None:
     '''
     volume_info:
         media_url

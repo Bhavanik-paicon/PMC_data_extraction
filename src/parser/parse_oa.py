@@ -4,32 +4,33 @@
 '''
 
 import codecs
-import os
-import jsonlines
 import pandas as pd
 import pathlib
 from tqdm import tqdm
-from typing import List, Union
-import subprocess
+from typing import List, Union, Dict
 
 from bs4 import BeautifulSoup
 
 from utils import write_jsonl
 from data import OA_LINKS, UPDATE_SCHEDULE
 
+
 def get_img_url(PMC_ID, graphic):
-    img_url = 'https://www.ncbi.nlm.nih.gov/pmc/articles/%s/bin/%s.jpg' % (PMC_ID, graphic)
+    img_url = f'https://www.ncbi.nlm.nih.gov/pmc/articles/{PMC_ID}/bin/{graphic}.jpg'
     return img_url
+
 
 def get_video_url(PMC_ID, media):
     mov_url = 'https://www.ncbi.nlm.nih.gov/pmc/articles/%s/bin/%s' % (PMC_ID, media)
     return mov_url
 
+
 def get_filelist_url(volume_id):
     filelist_url = 'https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id=%s' % volume_id
     return filelist_url
 
-def parse_xml(xml_path: Union[str, pathlib.Path]):
+
+def parse_xml(xml_path: Union[str, pathlib.Path]) -> List[Dict[str, str]]:
     '''
     Return: images' info of the xml. [{
         'media_id': media_id,
@@ -106,6 +107,7 @@ def get_volume_info(volumes: List[int], extraction_dir: pathlib.Path) -> List[st
             item_info = parse_xml(xml_path)
             info += item_info
     return info
+
 
 if __name__ == '__main__':
     print('\033[32mParse PMC documents\033[0m')
