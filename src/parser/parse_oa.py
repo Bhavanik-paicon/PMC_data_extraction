@@ -4,24 +4,33 @@
 '''
 
 import codecs
-import jsonlines
 import pandas as pd
 import pathlib
 from tqdm import tqdm
+from typing import List, Union, Dict
 
 from bs4 import BeautifulSoup
 
 from utils import write_jsonl
+from data import OA_LINKS, UPDATE_SCHEDULE
+
 
 def get_img_url(PMC_ID, graphic):
-    img_url = 'https://www.ncbi.nlm.nih.gov/pmc/articles/%s/bin/%s.jpg' % (PMC_ID, graphic)
+    img_url = f'https://www.ncbi.nlm.nih.gov/pmc/articles/{PMC_ID}/bin/{graphic}.jpg'
     return img_url
+
 
 def get_video_url(PMC_ID, media):
     mov_url = 'https://www.ncbi.nlm.nih.gov/pmc/articles/%s/bin/%s' % (PMC_ID, media)
     return mov_url
 
-def parse_xml(xml_path):
+
+def get_filelist_url(volume_id):
+    filelist_url = 'https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id=%s' % volume_id
+    return filelist_url
+
+
+def parse_xml(xml_path: Union[str, pathlib.Path]) -> List[Dict[str, str]]:
     '''
     Return: images' info of the xml. [{
         'media_id': media_id,
@@ -76,7 +85,7 @@ def parse_xml(xml_path):
     return item_info
 
 
-def get_volume_info(volumes, extraction_dir: pathlib.Path):
+def get_volume_info(volumes: List[int], extraction_dir: pathlib.Path) -> List[str]:
     '''Extract image info from volumes
     Args:
         volumes: volumes' IDs to extract
@@ -87,8 +96,8 @@ def get_volume_info(volumes, extraction_dir: pathlib.Path):
         extraction_dir = pathlib.Path(extraction_dir)
     info = []
     for volume_id in volumes:
-        volume = 'PMC00%dxxxxxx' % volume_id
-        file_name='oa_comm_xml.%s.baseline.2022-09-03.filelist.csv' % volume
+        volume = f'PMC00{volume_id!s}xxxxxx' 
+        file_name = f'oa_comm_xml.{volume}.baseline.{UPDATE_SCHEDULE}.filelist.csv' 
         file_path = extraction_dir / volume / file_name
 
         df = pd.read_csv(file_path, sep=',')
@@ -98,6 +107,7 @@ def get_volume_info(volumes, extraction_dir: pathlib.Path):
             item_info = parse_xml(xml_path)
             info += item_info
     return info
+
 
 if __name__ == '__main__':
     print('\033[32mParse PMC documents\033[0m')
