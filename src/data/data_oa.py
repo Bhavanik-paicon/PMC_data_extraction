@@ -3,9 +3,9 @@
 
 
 volume = 'PMC00%dxxxxxx'
-csv_url = 'https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC00%dxxxxxx.baseline.2022-09-03.filelist.csv'
-txt_url = 'https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC00%dxxxxxx.baseline.2022-09-03.filelist.txt'
-tar_url = 'https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC00%dxxxxxx.baseline.2022-09-03.tar.gz'
+csv_url = 'https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC00%dxxxxxx.baseline.2024-06-18.filelist.csv'
+txt_url = 'https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC00%dxxxxxx.baseline.2024-06-18.filelist.txt'
+tar_url = 'https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC00%dxxxxxx.baseline.2024-06-18.tar.gz'
 
 OA_LINKS = {}
 
