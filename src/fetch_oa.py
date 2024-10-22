@@ -24,27 +24,39 @@ from parser import get_volume_info  # Function to extract volume information fro
 from utils import read_jsonl, write_jsonl  # Functions for reading and writing JSONL files
 
 def provide_extraction_dir():
-    """Ensures the extraction directory exists and is empty.
+    """Ensures the extraction directory exists and handles cases where the directory is not empty.
     
     Raises:
-        Exception: If the directory is not empty and deletion is not confirmed.
+        Exception: If the directory is not empty and deletion is not confirmed with the `-d` flag.
     """
-    # Create extraction directory if it doesn't exist
-    if not os.path.exists(args.extraction_dir):
-        os.makedirs(args.extraction_dir, 0o755)
-    # Check if the directory is empty, or delete contents if requested
-    elif len(os.listdir(args.extraction_dir)) > 0 and not args.keep_archives:
-        if not args.delete_extraction_dir:
-            raise Exception('The extraction directory {0} is not empty. '
-                            'Please pass -d to confirm deletion of its contents.')
+    try:
+        # Check if the extraction directory exists
+        if not os.path.exists(args.extraction_dir):
+            os.makedirs(args.extraction_dir, 0o755)
 
-        # Delete existing files and directories in the extraction directory
-        files = glob.glob(os.path.join(args.extraction_dir, '*'))
-        for f in files:
-            if os.path.isdir(f):
-                shutil.rmtree(f, True)
+        # If the directory exists and is not empty
+        elif len(os.listdir(args.extraction_dir)) > 0:
+            if args.keep_archives:
+                # Keep existing files, do nothing
+                logger.info(f"Keeping existing files in {args.extraction_dir}.")
+            elif args.delete_extraction_dir:
+                # Delete existing files and directories if `-d` flag is passed
+                logger.info(f"Deleting existing contents in {args.extraction_dir} as per -d flag.")
+                files = glob.glob(os.path.join(args.extraction_dir, '*'))
+                for f in files:
+                    if os.path.isdir(f):
+                        shutil.rmtree(f, True)
+                    else:
+                        os.remove(f)
             else:
-                os.remove(f)
+                # Raise an exception if neither flag is passed
+                raise Exception(f'The extraction directory {args.extraction_dir} is not empty. '
+                                'Please pass -d to confirm deletion of its contents, or --keep-archives to preserve them.')
+
+    except Exception as e:
+        logger.error(f"Error in provide_extraction_dir: {e}")
+        raise
+
 
 def extract_archive(archive_path, target_dir):
     """Extracts a tar.gz archive to the specified target directory.
@@ -53,91 +65,99 @@ def extract_archive(archive_path, target_dir):
         archive_path (str): Path to the archive file.
         target_dir (str): Directory to extract the contents into.
     """
-    subprocess.call(['tar', 'zxf', archive_path, '-C', target_dir])
+    try:
+        subprocess.call(['tar', 'zxf', archive_path, '-C', target_dir])
+    except Exception as e:
+        logger.error(f"Error extracting archive {archive_path}: {e}")
 
 def download_archive(volumes, extract=True):
-    """Downloads and extracts archives for specified volumes from PMC.
+    """Downloads and optionally extracts archives for the specified volumes from PMC.
     
     Args:
         volumes (list): List of volume IDs to download.
-        extract (bool): Flag to indicate whether to extract archives after downloading.
+        extract (bool): Flag indicating whether to extract archives after downloading.
     """
     logger.info('Volumes to download: %s' % volumes)
 
     for volume_id in volumes:
-        volume = 'PMC00%dxxxxxx' % volume_id  # Format volume ID
-        csv_url = OA_LINKS[volume]['csv_url']  # Get CSV URL from links
-        tar_url = OA_LINKS[volume]['tar_url']  # Get tar URL from links
-        logger.info(csv_url)
-        logger.info(tar_url)
+        volume = 'PMC00%dxxxxxx' % volume_id
+        csv_url = OA_LINKS[volume]['csv_url']
+        tar_url = OA_LINKS[volume]['tar_url']
+        logger.info(f"CSV URL: {csv_url}")
+        logger.info(f"Tar URL: {tar_url}")
 
         # Download CSV and tar files
-        subprocess.call(['wget', '-nc', '-nd', '-c', '-q', '-P', f'{args.extraction_dir}/{volume}', csv_url])
-        subprocess.call(['wget', '-nc', '-nd', '-c', '-q', '-P', f'{args.extraction_dir}/{volume}', tar_url])
+        try:
+            subprocess.call(['wget', '-nc', '-nd', '-c', '-q', '-P', f'{args.extraction_dir}/{volume}', csv_url])
+            subprocess.call(['wget', '-nc', '-nd', '-c', '-q', '-P', f'{args.extraction_dir}/{volume}', tar_url])
 
-        # Check if the archive has already been extracted
-        if not pathlib.Path(f'{args.extraction_dir}/{volume}/{volume}').exists():
-            logger.info('Extracting %s' % volume)
-            extract_archive(
-                archive_path=f'{args.extraction_dir}/{volume}/{tar_url.split("/")[-1]}',
-                target_dir=f'{args.extraction_dir}/{volume}'
-            )
-            logger.info('%s Done', volume)
-        else:
-            logger.info('%s already exists', volume)
+            # Extract the archive if it hasn't been extracted yet
+            if not pathlib.Path(f'{args.extraction_dir}/{volume}/{volume}').exists():
+                logger.info(f'Extracting {volume}')
+                extract_archive(f'{args.extraction_dir}/{volume}/{tar_url.split("/")[-1]}', f'{args.extraction_dir}/{volume}')
+                logger.info(f'Extraction complete for {volume}')
+            else:
+                logger.info(f'{volume} already exists')
 
-def dowload_media(volume_info):
-    """Downloads media files associated with the specified volume information.
+        except Exception as e:
+            logger.error(f"Error downloading or extracting archive for volume {volume_id}: {e}")
+
+def download_media(volume_info):
+    """Downloads media files (images) associated with the specified volume information.
     
     Args:
         volume_info (list): List of dictionaries containing media URLs and names.
     """
-    # Create a directory for downloaded figures
     figures_dir = f'{args.extraction_dir}/figures'
-    if not os.path.exists(figures_dir):
-        os.makedirs(figures_dir, 0o755)
+    try:
+        if not os.path.exists(figures_dir):
+            os.makedirs(figures_dir, 0o755)
 
-    # Download each media file
-    for obj in tqdm(volume_info, desc='Downloading media'):
-        media_url = obj['media_url']
-        media_name = obj['media_name']
-        file_path = f'{figures_dir}/{media_name}'
+        # Download each media file
+        for obj in tqdm(volume_info, desc='Downloading media'):
+            direct_img_url = obj['Image_URL']
+            media_name = obj['media_name']
+            file_path = f'{figures_dir}/{media_name}'
 
-        # Attempt to download the media file
-        subprocess.call(['wget', '-nc', '-nd', '-c', '-q', '-P', file_path, media_url])
-        if not os.path.exists(file_path):
-            raise RuntimeError('Download failed. Use the following command to check connection: '
-                               'wget https://www.pmc.ncbi.nlm.nih.gov/articles/PMC539052/figure/pmed.0010066.t003.jpg')
+            try:
+                subprocess.call(['wget', '-nc', '-nd', '-c', '-q', '-P', figures_dir, direct_img_url])
+                if not os.path.exists(file_path):
+                    raise RuntimeError(f"Download failed for {media_name}. Check connection using: "
+                                       f"wget {direct_img_url}")
+            except Exception as e:
+                logger.error(f"Error downloading {media_name}: {e}")
+
+    except Exception as e:
+        logger.error(f"Error in download_media: {e}")
 
 if __name__ == '__main__':
     # Check if wget is available
     if not shutil.which("wget"):
-        print("wget not found, please install wget and put it on your PATH")
+        logger.error("wget not found, please install wget and put it on your PATH")
         exit(-1)
 
-    args = parse_args_oa()  # Parse command-line arguments
-    download_archive(volumes=args.volumes)  # Download specified archives
+    try:
+        args = parse_args_oa()
+        provide_extraction_dir()
 
-    # Check if volume info already exists
-    save_name = ''.join([str(volume_id) for volume_id in args.volumes])
-    volume_info_path = f'{args.extraction_dir}/{save_name}.jsonl'
-    if not os.path.exists(volume_info_path):
-        # Extract volume information from XML files
-        logger.info('Extracting Volume INFO')
-        volume_info = get_volume_info(
-            volumes=args.volumes,
-            extraction_dir=args.extraction_dir
-        )
+        # Download and extract archives for specified volumes
+        download_archive(volumes=args.volumes)
 
-        # Save volume information in JSONL format
-        logger.info('Saving Volume INFO')
-        write_jsonl(
-            data_list=volume_info,
-            save_path=volume_info_path
-        )
-        logger.info('Saved')
-    else:
-        volume_info = read_jsonl(file_path=volume_info_path)  # Load existing volume info
+        # Load or extract volume information
+        save_name = ''.join([str(volume_id) for volume_id in args.volumes])
+        volume_info_path = f'{args.extraction_dir}/{save_name}.jsonl'
 
-    dowload_media(volume_info)  # Download media files
-    logger.info('Done')  # Indicate completion
+        if not os.path.exists(volume_info_path):
+            logger.info('Extracting Volume INFO')
+            volume_info = get_volume_info(volumes=args.volumes, extraction_dir=args.extraction_dir)
+            write_jsonl(volume_info, volume_info_path)
+            logger.info('Volume INFO saved.')
+        else:
+            volume_info = read_jsonl(volume_info_path)
+
+        # Download the media files
+        download_media(volume_info)
+        logger.info('Media download complete.')
+
+    except Exception as e:
+        logger.error(f"Error in main execution: {e}")
